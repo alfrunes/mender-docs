@@ -74,11 +74,10 @@ At the end of this tutorial you will have:
   - artifact storage
   - MongoDB data
 - SSL certificate for the API Gateway
-- SSL certificate for the storage domain
 - a set of keys for generating and validating access tokens
 
-Consult the section on [certificates and keys](../04.Certificates-and-keys/docs.md) for details on
-how the certificates and keys are used in the system.
+Consult the section on [certificate and keys](../04.Certificate-and-keys/docs.md) for details on
+how the certificate and keys are used in the system.
 
 #### Docker compose naming scheme
 
@@ -220,26 +219,26 @@ necessary Docker images:
 !! the above step may fail and you may have to retry after some time.
 
 
-### Certificates and keys
+### Certificate and keys
 
 First, set the public domain name of your server (the URL your devices will reach your Mender server on):
 
 ```bash
 API_GATEWAY_DOMAIN_NAME="mender.example.com"  # NB! replace with your server's public domain name
-STORAGE_PROXY_DOMAIN_NAME="s3.docker.mender.io"  # change if you are using a different domain name than the the default one
+STORAGE_PROXY_DOMAIN_NAME="s3.mender.example.com"  # change if you are using a different domain name than the the default one
 ```
 
 Prepare certificates using the helper script `keygen`:
 
 ```bash
-CERT_API_CN=$API_GATEWAY_DOMAIN_NAME CERT_STORAGE_CN=$STORAGE_PROXY_DOMAIN_NAME ../keygen
+CERT_CN="$API_GATEWAY_DOMAIN_NAME" CERT_SAN="DNS:$API_GATEWAY_DOMAIN_NAME,DNS:$STORAGE_PROXY_DOMAIN_NAME" ../keygen
 ```
 
-> ```
-> Generating a 256 bit EC private key
+> ```plaintext
+> Generating an EC private key
 > writing new private key to 'private.key'
-> ...
-> All keys and certificates have been generated in directory keys-generated.
+> [...]
+> All Mender Server keys and certificates have been generated in directory /home/menderer/tmp/integration/production/keys-generated.
 > Please include them in your docker compose and device builds.
 > For more information please see https://docs.mender.io/Administration/Certificates-and-keys.
 > ```
@@ -248,14 +247,9 @@ Your local directory tree should now look like this:
 <!--AUTOMATION: ignore -->
 ```bash
 ├── keys-generated
-│   ├── certs
-│   │   ├── api-gateway
-│   │   │   ├── cert.crt
-│   │   │   └── private.key
-│   │   └── server.crt
-│   │   └── storage-proxy
-│   │       ├── cert.crt
-│   │       └── private.key
+│   ├── cert
+│   │   ├── cert.crt
+│   │   └── private.key
 │   └── keys
 │       ├── deviceauth
 │       │   └── private.key
@@ -267,10 +261,10 @@ Your local directory tree should now look like this:
 └── run
 ```
 
-The production template file `prod.yml` is already configured to load keys and
-certificates from locations created by the `keygen` script. If you wish to use a
-different set of certificates or keys, please consult the
-[relevant documentation](../04.Certificates-and-keys/docs.md).
+The production template file `prod.yml` is already configured to load the
+certificate and keys from locations created by the `keygen` script. If you wish
+to use a different set of keys or certificate, please consult the
+[relevant documentation](../04.Certificate-and-keys/docs.md).
 
 Next, we can add and commit generated keys and certificates:
 
@@ -281,27 +275,23 @@ git add keys-generated
 ```
 
 ```bash
-git commit -m 'production: adding generated keys and certificates'
+git commit -m 'production: adding generated keys and certificate'
 ```
 
 > ```
-> [my-production-setup fd8a397] production: adding generated keys and certificates
+> [my-production-setup fd8a397] production: adding generated keys and certificate
 >  6 files changed, 108 insertions(+)
->  create mode 100644 production/keys-generated/certs/api-gateway/cert.crt
->  create mode 100644 production/keys-generated/certs/api-gateway/private.key
->  create mode 100644 production/keys-generated/certs/server.crt
->  create mode 100644 production/keys-generated/certs/storage-proxy/cert.crt
->  create mode 100644 production/keys-generated/certs/storage-proxy/private.key
+>  create mode 100644 production/keys-generated/cert/cert.crt
+>  create mode 100644 production/keys-generated/cert/private.key
 >  create mode 100644 production/keys-generated/keys/deviceauth/private.key
 >  create mode 100644 production/keys-generated/keys/useradm/private.key
 > ```
 
-The API Gateway and Storage Proxy certificates generated here need to be made
-available to the Mender client.
+The API Gateway certificate generated here need to be made available to the Mender client.
 Consult the section on [building for production](../../05.System-updates-Yocto-Project/06.Build-for-production/docs.md)
-for a description on how to include the certificates in the client builds.
+for a description on how to include the certificate in the client builds.
 
-!! Only certificates need to be made available to devices or end users. Private keys should never be shared.
+!! Only the certificate need to be made available to devices or end users. Private keys should never be shared.
 
 
 #### Encrypting keys (optional)
@@ -355,11 +345,11 @@ git add keys-generated.tar.gpg
 
 <!--AUTOMATION: ignore=optional step -->
 ```bash
-git commit -m 'production: adding generated keys and certificates'
+git commit -m 'production: adding generated keys and certificate'
 ```
 
 > ```
-> [my-production-setup 237af44] production: adding generated keys and certificates
+> [my-production-setup 237af44] production: adding generated keys and certificate
 >  1 file changed, 111 insertions(+)
 >  create mode 100644 production/keys-generated.tar.gpg
 > ```
@@ -462,7 +452,7 @@ After these three commands, the updated entry should look like this (you can aga
         environment:
             DEPLOYMENTS_AWS_AUTH_KEY: mender-deployments
             DEPLOYMENTS_AWS_AUTH_SECRET: ahshagheeD1ooPae
-            DEPLOYMENTS_AWS_URI: https://mender.example.com
+            DEPLOYMENTS_AWS_URI: https://s3.mender.example.com
     ...
 ```
 
@@ -557,7 +547,7 @@ git log --oneline master..HEAD
 ```
 > ```
 > 7a4de3c production: configuration
-> 41273f7 production: adding generated keys and certificates
+> 41273f7 production: adding generated keys and certificate
 > 5ad6528 production: initial template
 > ```
 
@@ -809,7 +799,7 @@ git log --oneline master..HEAD
 > ```
 > 76b3d00 production: Enterprise configuration
 > 7a4de3c production: configuration
-> 41273f7 production: adding generated keys and certificates
+> 41273f7 production: adding generated keys and certificate
 > 5ad6528 production: initial template
 > ```
 

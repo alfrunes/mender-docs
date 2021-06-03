@@ -28,7 +28,7 @@ taxonomy:
 <!-- AUTOMATION: execute=cp config/prod.yml.template config/prod.yml -->
 <!-- AUTOMATION: execute=sed -i.bak "s/set-my-alias-here.com/s3.docker.mender.io/g" config/prod.yml -->
 <!-- AUTOMATION: execute=sed -i.bak 's|DEPLOYMENTS_AWS_URI:.*|DEPLOYMENTS_AWS_URI: https://s3.docker.mender.io|' config/prod.yml -->
-<!-- AUTOMATION: execute=CERT_API_CN=s3.docker.mender.io CERT_STORAGE_CN=s3.docker.mender.io ../keygen -->
+<!-- AUTOMATION: execute=CERT_CN=docker.mender.io CERT_SAN=DNS:docker.mender.io,DNS:*.docker.mender.io ../keygen -->
 <!-- AUTOMATION: execute=docker volume create --name=mender-artifacts -->
 <!-- AUTOMATION: execute=docker volume create --name=mender-db -->
 <!-- AUTOMATION: execute=docker volume inspect --format '{{.Mountpoint}}' mender-artifacts -->
@@ -74,15 +74,15 @@ docker volume create --name=mender-db-backup
 Clone the contents of the original volumes to the backup volumes:
 
 ```bash
-docker run --rm -v mender-artifacts:/from        -v mender-artifacts-backup:/to        alpine cp -a /from /to
-docker run --rm -v mender-db:/from               -v mender-db-backup:/to               alpine cp -a /from /to
+docker run --rm -v mender-artifacts:/from -v mender-artifacts-backup:/to alpine cp -a /from /to
+docker run --rm -v mender-db:/from        -v mender-db-backup:/to        alpine cp -a /from /to
 ```
 
 This backup can later be restored with this command:
 
 ```bash
-docker run --rm -v mender-artifacts:/to        -v mender-artifacts-backup:/from        alpine cp -a /from /to
-docker run --rm -v mender-db:/to               -v mender-db-backup:/from               alpine cp -a /from /to
+docker run --rm -v mender-artifacts:/to -v mender-artifacts-backup:/from alpine cp -a /from /to
+docker run --rm -v mender-db:/to        -v mender-db-backup:/from        alpine cp -a /from /to
 ```
 
 You can try the above command immediately, it will just restore the already

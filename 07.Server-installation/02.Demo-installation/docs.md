@@ -39,8 +39,10 @@ In addition, add the following lines to `/etc/hosts`:
 127.0.0.1 docker.mender.io
 ```
 
-!!! This is needed because demo certificates for the HTTPS communication are
-!!! created for `s3.docker.mender.io` and `docker.mender.io`
+!!! This is needed because the demo certificate for the HTTPS communication is
+!!! created for `docker.mender.io`. Moreover, the demo docker composition uses
+!!! the hostname `s3.docker.mender.io` to reference the artifact storage backend.
+
 
 ## Manage the Mender demo instance
 
@@ -101,7 +103,7 @@ The script created a demo user, and you can login to the Mender UI by visiting
 [https://localhost](https://localhost?target=_blank).
 
 ! You might get a warning from your browser that that the site is not secure.
-! This is because we use self-signed certificates in the demo environment and
+! This is because we use a self-signed certificate in the demo environment and
 ! can be safely ignored.
 
 ### Stopping the demo

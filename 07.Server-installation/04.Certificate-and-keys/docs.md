@@ -1,5 +1,5 @@
 ---
-title: Certificates and keys
+title: Certificate and keys
 taxonomy:
     category: docs
     label: tutorial
@@ -20,8 +20,7 @@ for which purpose can be seen below.
 
 | Component               | Purpose of keys                                                                                                                                                                                                                                                                                                                  | Shares certificate or key with                                                                                                                |
 |-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| API Gateway           | Listens to a public port for `https` requests only (plain `http` is disabled). These requests can come from Mender Clients that check for- or report status about updates through the [Device APIs](../../200.API/?target=_blank#device-apis), or from users and tools that manage deployments through the [Management APIs](../../200.API/?target=_blank#management-apis). | **Mender Clients** and users of the **Management APIs**, including web browsers accessing the **Mender UI**.                                       |
-| Storage Proxy         | Listens to a public port for `https` requests only (plain `http` is disabled). The Deployment Service manages Artifacts through the Storage Proxy and Mender Clients make Artifact download requests.                                                                                                        | **Mender Clients** and **Deployment Service**.                                                                                                    |
+| API Gateway           | Listens to a public port for `https` requests only (plain `http` is disabled). These requests can come from Mender Clients that check for- or report status about updates through the [Device APIs](../../200.API/?target=_blank#device-apis), or from users and tools that manage deployments through the [Management APIs](../../200.API/?target=_blank#management-apis). If minio is used for storing artifacts, **Deployment service** will manage artifacts in minio using API Gateway as a proxy. | **Mender Clients**, **Deployments service** and users of the **Management APIs**, including web browsers accessing the **Mender UI**.              |
 | User Administration   | Signs and verifies JSON Web Tokens that users of the [Management APIs](../../200.API/?target=_blank#management-apis), including end users of the Mender UI, include in their requests to authenticate themselves.                                                                                                                                     | Nothing. The service gets signature verification requests from the API Gateway, so all keys are kept private to the service and not shared. |
 | Device Authentication | Signs and verifies JSON Web Tokens that Mender Clients include in their requests to authenticate themselves when accessing the [Device APIs](../../200.API/?target=_blank#device-apis).                                                                                                                                                                   | Nothing. The service gets signature verification requests from the API Gateway, so all keys are kept private to the service and not shared. |
 | Mender Client | Signs requests for JSON Web Tokens sent to the Device Authentication service. A Mender Client will request a new token when it connects to the Mender Server for the first time, and when a token expires. The Mender Client includes a token in all its communication to authenticate itself when accessing the [Device APIs](../../200.API/?target=_blank#device-apis).                                                                                                                                                                   | The **Device Authentication** service stores the public keys of Mender Clients. |
@@ -47,28 +46,29 @@ of the steps should be the exact same in both cases.
 
 You need key pairs for all the services, and the best practice is to use
 different keys for all these four services, as it limits the attack surface
-if the private key of one service gets compromised. The API Gateway and
-Storage Proxy also requires certificates in addition to key pairs.
-In order to make all this key and certificate generation easier, we have
-created a `keygen` script that leverages the `openssl` utility to do
+if the private key of one service gets compromised. The API Gateway also require
+a certificate. In order to make all this key and certificate generation easier,
+we have created a `keygen` script that leverages the `openssl` utility to do
 the heavy lifting. It is available in
 [Mender's Integration GitHub repository](https://github.com/mendersoftware/integration?target=_blank).
 
 Open a terminal and go to the directory where you cloned the integration repository.
 
 In order to generate the self-signed certificates, the script needs to know
-what the CN (Common Name) of the two certificates should be, i.e. which URL
-will the Mender Clients and users access them on. In our example, we will use
-`docker.mender.io` for the API Gateway and `s3.docker.mender.io` for
-the Storage Proxy.
+what the Common Name (CN) of the certificate as well as any Subject Alternative
+Name (SAN) which the certificate should cover. In our example, we will use the
+same hostnames as found in the demo certificate: `docker.mender.io` for the
+common name and append all subdomains of the common name to the SAN.
 
-! Make sure the CNs you use will be the same as the URLs that the Mender clients and web browsers will use to access the API Gateway and Storage Proxy. If there is a mismatch, the clients will reject the connections.
+! Make sure the SANs you use will cover all the URI hostnames that the clients
+! use to access the Mender server. If there is a mismatch, the client will
+! reject the connections.
 
 With this knowledge, all the required keys and certificates can be generated
 by running:
 
 ```bash
-CERT_API_CN=docker.mender.io CERT_STORAGE_CN=s3.docker.mender.io ./keygen
+CERT_CN=docker.mender.io CERT_SAN="DNS:docker.mender.io,DNS:*.docker.mender.io" ./keygen
 ```
 
 !!! This generates keys with 128-bit security level (256-bit Elliptic Curve and 3072-bit RSA keys) and certificates valid for approximately 10 years. You can customize the parameters by adapting the script to your needs.
@@ -81,23 +81,15 @@ as follows:
 
 ```bash
 keys-generated/
-├── certs
-│   ├── api-gateway
-│   │   ├── cert.crt
-│   │   └── private.key
-│   ├── server.crt
-│   └── storage-proxy
-│       ├── cert.crt
-│       └── private.key
+├── cert
+│   ├── cert.crt
+│   └── private.key
 └── keys
     ├── deviceauth
     │   └── private.key
     └── useradm
         └── private.key
 ```
-
-!!! The file `certs/server.crt` is just a concatenation of all the certificates that the Mender client uses.
-
 
 ### Installing new keys and certificates
 
@@ -123,42 +115,30 @@ The API Gateway will use the new keys by using a docker compose file with the fo
 ```yaml
     mender-api-gateway:
         volumes:
-            - ./keys-generated/certs/api-gateway/cert.crt:/var/www/mendersoftware/cert/cert.crt
-            - ./keys-generated/certs/api-gateway/private.key:/var/www/mendersoftware/cert/private.key
+            - ./keys-generated/cert/cert.crt:/var/www/mendersoftware/cert/cert.crt
+            - ./keys-generated/cert/private.key:/var/www/mendersoftware/cert/private.key
 
 ```
 
 
 
-#### Storage Proxy
-
-The default setup described in compose file uses [Minio](https://www.minio.io/?target=_blank)
-object storage along with a Storage Proxy service. The proxy service provides
-HTTPS and traffic limiting services.
-
-The Storage Proxy will use the new keys by using a docker compose file with the following entries:
-
-```yaml
-    storage-proxy:
-        volumes:
-            - ./keys-generated/certs/storage-proxy/cert.crt:/var/www/storage-proxy/cert/cert.crt
-            - ./keys-generated/certs/storage-proxy/private.key:/var/www/storage-proxy/cert/private.key
-```
-
-The Deployment Service communicates with the Minio object storage via the Storage Proxy.
+The default `docker-compose` setup uses [Minio](https://www.minio.io/?target=_blank)
+object storage for storing Mender Artifacts. The Deployment Service communicates
+with the Minio object storage via the API Gateway.
 For this reason, the Deployment Service service must be provisioned with a
-certificate of the Storage Proxy so the authenticity can be validated. This can be
+certificate of the gateway so the authenticity can be validated. This can be
 implemented by adding the following entries to a compose file:
 
 ```yaml
     mender-deployments:
         volumes:
-            - ./keys-generated/certs/storage-proxy/cert.crt:/etc/ssl/certs/storage-proxy.pem
+            - ./cert/cert.crt:/etc/ssl/certs/docker.mender.io.crt
         environment:
-            STORAGE_BACKEND_CERT: /etc/ssl/certs/storage-proxy.pem
+            STORAGE_BACKEND_CERT: /etc/ssl/certs/docker.mender.io.crt
 ```
 
-!!! `STORAGE_BACKEND_CERT` defines the path to the certificate of the Storage Proxy within the filesystem of the Deployment Service. The Deployment Service will automatically load this certificate into its trust store.
+!!! `STORAGE_BACKEND_CERT` configures the path to a certificate that the service
+!!! automatically loads into its trust store on startup if set.
 
 
 #### User Administration
@@ -201,14 +181,16 @@ The client does not need any special configuration regarding certificates as lon
 is signed by a Certificate Authority. The client will verify trust using its system root certificates, which
 are typically provided by the `ca-certificates` package.
 
-If the certificate is self-signed, then clients that are to connect to the server need to have the file with
-the concatenated certificates (`keys-generated/certs/server.crt`) stored locally in order to verify
+If the certificate is self-signed, then clients that are to connect to the
+server need to have the certificate (`keys-generated/cert/cert.crt`) stored locally in order to verify
 the server's authenticity. Please see [the client section on building for production](../../05.System-updates-Yocto-Project/06.Build-for-production/docs.md)
-for a description on how to provision new device disk images with the new certificates. In this case, it
-is advisable to ensure there is a overlap between the issuance of new certificates and expiration of old
-ones so all clients are able to receive an update containing the new cert before the old one expires. You
-can have two valid certificates for the Mender server concatenated in the server.crt file. When all clients
-have received the updated server.crt, the server configuration can be updated to use the new certificate.
-In a subsequent update, the old certificate can be removed from the client's server.crt file.
+for a description on how to provision new device disk images with a new certificate. In this case, it
+is advisable to ensure there is a overlap between the issuance of a new certificate and expiration of old
+ones so all clients are able to receive an update containing the new certificate before the old one expires. You
+can have multiple valid certificates for the Mender server concatenated in the
+same certificate file. When all clients have received the updated certificate
+file (containing the old and the new certificate), the server configuration can
+be updated to use the new certificate. In a subsequent update, the old
+certificate can be removed from the client's certificate file.
 
 !!! The key of the Mender Client itself is automatically generated and stored at `/var/lib/mender/mender-agent.pem` the first time the Mender Client runs. We do not yet cover rotation of Mender Client keys in live installations in this document.

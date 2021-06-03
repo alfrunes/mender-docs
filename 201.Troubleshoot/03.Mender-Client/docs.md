@@ -83,23 +83,12 @@ Replace the hostname with the one for your Mender API Gateway below and run the 
 echo | openssl s_client -connect mender.example.com:443 2>/dev/null | openssl x509 -noout -dates
 ```
 > ```
-> notBefore=Dec 14 19:52:46 2016 GMT
-> notAfter=Dec 12 19:52:46 2026 GMT
+> notBefore=Jun  1 13:11:13 2021 GMT
+> notAfter=May 30 13:11:13 2031 GMT
 > ```
 
-Also note that the storage proxy has its own certificate, and it runs on the same host as the API Gateway
-on port 9000 by default. Adjust the hostname and verify the validity of its certificate with the following command:
-
-```bash
-echo | openssl s_client -connect s3.example.com:9000 2>/dev/null | openssl x509 -noout -dates
-```
-> ```
-> notBefore=Dec 14 19:52:46 2016 GMT
-> notAfter=Dec 12 19:52:46 2026 GMT
-> ```
-
-We can see that both these certificates are currently valid.
-Also see the [documentation on certificates](../../07.Server-installation/04.Certificates-and-keys/docs.md) for an
+We can see that the certificate is currently valid.
+Also see the [documentation on certificates](../../07.Server-installation/04.Certificate-and-keys/docs.md) for an
 overview and description on how to generate new certificates.
 
 
@@ -123,8 +112,8 @@ uses an official CA so the only reason your client would reject this is if it do
 in its system store.
 
 On the other hand, if you set up the Mender server yourself as described in
-[Production installation](../../07.Server-installation/03.Production-installation/docs.md) and generated certificates as part of it,
-your need to make sure that the server certificates are in `/etc/mender/server.crt` on your device.
+[Production installation](../../07.Server-installation/03.Production-installation/docs.md) and generated the certificate as part of it,
+you need to make sure that the server certificate is in `/etc/mender/server.crt` on your device.
 
 To test that they match, run `cat /etc/mender/server.crt` on your device, and compare that to the output
 of the following command, adjusting the hostnames mender.example.com / s3.example.com (ideally run on device, but can be run from elsewhere as well):
