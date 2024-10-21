@@ -23,7 +23,7 @@ before you move on to
 
 The demo environment requires the following components to be available
 on your system:
-
+<!--AUTOVERSION: "v%"/ignore -->
 * [Docker Engine](https://docs.docker.com/engine/install?target=_blank) >= v1.20
 * [Docker Compose](https://docs.docker.com/compose/install?target=_blank) >= v2.23.1
 
